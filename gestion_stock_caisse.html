@@ -1,0 +1,360 @@
+
+<!DOCTYPE html>
+<html lang="mg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestion Stock & Caisse</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial;background:#f1f4f9;color:#172033}
+header{background:#123c79;color:white;padding:18px}
+header h2{margin:0}
+nav{display:flex;overflow:auto;gap:7px;background:white;padding:10px;position:sticky;top:0}
+nav button{border:0;padding:12px;border-radius:9px;white-space:nowrap;background:#e5ebf5}
+nav button.active{background:#1769e0;color:white}
+main{padding:12px;max-width:900px;margin:auto}
+section{display:none}
+section.active{display:block}
+.card{background:white;padding:15px;border-radius:13px;margin-bottom:13px;border:1px solid #dce3ec}
+input,select{width:100%;padding:12px;margin:5px 0 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:16px}
+button{cursor:pointer}
+.btn{background:#1769e0;color:white;border:0;border-radius:8px;padding:12px;font-weight:bold;margin:3px}
+.green{background:#16834a}
+.red{background:#c62828}
+.gray{background:#e5e7eb;color:#111}
+.product{background:#fff;border:1px solid #dce3ec;border-radius:10px;padding:13px;margin:10px 0}
+.muted{color:#687386;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:9px 5px;text-align:left;border-bottom:1px solid #ddd}
+.tablewrap{overflow-x:auto}
+#message{position:fixed;bottom:15px;left:5%;width:90%;background:#172033;color:white;padding:12px;border-radius:8px;display:none}
+#invoice{display:none}
+@media print{
+  @page{size:auto;margin:10mm}
+  body{background:white!important}
+  body>*{display:none!important}
+  #invoice{display:block!important;position:static!important;width:100%;color:black!important;font:14px Arial,sans-serif}
+  #invoice h2{text-align:center}
+  #invoice table{width:100%;border-collapse:collapse}
+  #invoice th,#invoice td{border-bottom:1px solid #999;padding:8px}
+  .center{text-align:center}
+}
+</style>
+</head>
+<body>
+<header>
+<h2>Gestion Stock & Caisse</h2>
+<p>Fitantanana entana, varotra ary vola</p>
+</header>
+
+<nav>
+<button class="active" onclick="tab('home',this)">Topy maso</button>
+<button onclick="tab('stock',this)">Stock</button>
+<button onclick="tab('sell',this)">Amidy</button>
+<button onclick="tab('reports',this)">Entana lafo</button>
+<button onclick="tab('cash',this)">Caisse</button>
+<button onclick="tab('history',this)">Tantara</button>
+<button onclick="tab('backup',this)">Backup</button>
+</nav>
+
+<main>
+<section id="home" class="active">
+<div class="card"><h3>Karazana entana</h3><h2 id="kinds">0</h2></div>
+<div class="card"><h3>Total entana ao anaty stock</h3><h2 id="quantity">0</h2></div>
+<div class="card"><h3>Vola azo tamin'ny varotra</h3><h2 id="turnover">0 Ar</h2></div>
+<div class="card"><h3>Ambim-bola caisse</h3><h2 id="balance">0 Ar</h2></div>
+<div class="card"><h3>Varotra farany</h3><div id="recent">Tsy mbola misy.</div></div>
+</section>
+
+<section id="stock">
+<div class="card">
+<h3>Manampy entana</h3>
+<form id="stockform">
+<label>Anaran'ny entana</label>
+<input id="name" required placeholder="Ohatra: Ovy">
+<label>Isany</label>
+<input id="qty" type="number" min="0" required>
+<label>Vidiny nividianana (Ar)</label>
+<input id="buy" type="number" min="0" required>
+<label>Vidiny amidiana (Ar)</label>
+<input id="price" type="number" min="0" required>
+<button class="btn" type="submit">Tehirizo</button>
+</form>
+</div>
+<div class="card">
+<h3>Lisitry ny stock</h3>
+<input id="stocksearch" placeholder="Karohy ny entana...">
+<div class="tablewrap"><table>
+<thead><tr><th>Entana</th><th>Stock</th><th>Vidiny</th><th>Asa</th></tr></thead>
+<tbody id="stockrows"></tbody>
+</table></div>
+</div>
+</section>
+
+<section id="sell">
+<div class="card">
+<h3>🔎 Mitady entana hamidy</h3>
+<input id="search" placeholder="Soraty ny anaran'ny entana...">
+<p class="muted">Tsy hiseho eto ny entana raha tsy manao recherche ianao.</p>
+<div id="products"></div>
+</div>
+<div class="card" id="sellcard" hidden>
+<h3>Hamidy: <span id="sellname"></span></h3>
+<form id="sellform">
+<label>Isany amidy</label>
+<input id="sellqty" type="number" min="1" value="1" required>
+<label>Vidiny amidiana isanisany (Ar)</label>
+<input id="sellprice" type="number" min="0" required>
+<label>Vola nomen'ny mpanjifa (Ar)</label>
+<input id="paid" type="number" min="0" required>
+<p id="calculation"></p>
+<button class="btn green" type="submit">Hamafiso ny varotra</button>
+<button class="btn gray" type="button" onclick="sellcard.hidden=true">Ajanony</button>
+</form>
+</div>
+<div class="card">
+<h3>🧾 Facture farany</h3>
+<button class="btn" onclick="printInvoice()">🖨️ Imprimer facture</button>
+<p class="muted">Azo atao PDF koa raha misy izany safidy izany amin'ny navigateur.</p>
+</div>
+</section>
+
+<section id="reports">
+<div class="card">
+<h3>Tatitra momba ny varotra</h3>
+<label>Fotoana</label>
+<select id="period">
+<option value="today">Androany</option>
+<option value="yesterday">Omaly</option>
+<option value="all">Varotra rehetra</option>
+</select>
+<h3>Isan'ny entana lafo: <span id="soldqty">0</span></h3>
+<h3>Vola azo: <span id="soldtotal">0 Ar</span></h3>
+<h3>Tombony: <span id="profit">0 Ar</span></h3>
+<div class="tablewrap"><table>
+<thead><tr><th>Daty</th><th>Entana</th><th>Isany</th><th>Totaly</th></tr></thead>
+<tbody id="reportrows"></tbody>
+</table></div>
+</div>
+</section>
+
+<section id="cash">
+<div class="card">
+<h3>Caisse: vola miditra na mivoaka</h3>
+<form id="cashform">
+<label>Karazana</label>
+<select id="cashtype"><option value="in">Vola miditra</option><option value="out">Vola mivoaka</option></select>
+<label>Vola (Ar)</label>
+<input id="amount" type="number" min="1" required>
+<label>Antony</label>
+<input id="reason" required placeholder="Antony">
+<button class="btn" type="submit">Tehirizo</button>
+</form>
+</div>
+<div class="card">
+<p>Vola miditra: <b id="cashin">0 Ar</b></p>
+<p>Vola mivoaka: <b id="cashout">0 Ar</b></p>
+<p>Ambim-bola: <b id="cashbalance">0 Ar</b></p>
+</div>
+</section>
+
+<section id="history">
+<div class="card">
+<h3>Tantara rehetra</h3>
+<div class="tablewrap"><table>
+<thead><tr><th>Daty</th><th>Hetsika</th><th>Antsipiriany</th><th>Vola</th></tr></thead>
+<tbody id="historyrows"></tbody>
+</table></div>
+</div>
+</section>
+
+<section id="backup">
+<div class="card">
+<h3>Sauvegarde / Backup</h3>
+<p>Tehirizo ny backup mba tsy ho very ny angonao.</p>
+<button class="btn" onclick="backup()">Misintona backup JSON</button>
+<hr>
+<label>Safidio ny backup haverina</label>
+<input id="backupfile" type="file" accept=".json,application/json">
+<button class="btn green" onclick="restore()">Ampidiro ny backup</button>
+<p class="muted">Tandremo: ny famerenana backup dia manolo ny angona misy amin'izao.</p>
+</div>
+</section>
+</main>
+
+<div id="invoice"></div>
+<div id="message"></div>
+
+<script>
+const KEY="gestion_stock_caisse_mg_v4";
+let db={items:[],sales:[],cash:[],history:[]};
+let lastSale=null;
+
+function load(){
+ try{
+  const data=JSON.parse(localStorage.getItem(KEY)||"{}");
+  db.items=Array.isArray(data.items)?data.items:[];
+  db.sales=Array.isArray(data.sales)?data.sales:[];
+  db.cash=Array.isArray(data.cash)?data.cash:[];
+  db.history=Array.isArray(data.history)?data.history:[];
+ }catch(e){notify("Tsy afaka namaky ny tahiry.");}
+}
+function save(){
+ try{localStorage.setItem(KEY,JSON.stringify(db));return true;}
+ catch(e){notify("Tsy voatahiry. Jereo ny toerana fitahirizana.");return false;}
+}
+function id(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function money(n){return (Number(n)||0).toLocaleString("fr-FR")+" Ar";}
+function safe(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function dateText(d){return new Date(d).toLocaleString("fr-FR");}
+function notify(text){
+ const el=document.getElementById("message");
+ el.textContent=text;el.style.display="block";
+ setTimeout(()=>el.style.display="none",2500);
+}
+function history(type,detail,amount=0){
+ db.history.unshift({date:new Date().toISOString(),type,detail,amount});
+}
+function tab(id,button){
+ document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));
+ document.getElementById(id).classList.add("active");
+ document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+ button.classList.add("active");
+ render();
+}
+document.getElementById("stockform").addEventListener("submit",e=>{
+ e.preventDefault();
+ const n=name.value.trim(),q=Number(qty.value),b=Number(buy.value),p=Number(price.value);
+ if(db.items.some(x=>x.name.toLowerCase()===n.toLowerCase()))return notify("Efa misy io entana io.");
+ db.items.push({id:id(),name:n,qty:q,buy:b,sell:p});
+ history("Stock","Nampidirina: "+n);
+ if(save()){e.target.reset();render();notify("Voatahiry ny entana.");}
+});
+function removeItem(i){
+ if(!confirm("Fafana ve ity entana ity?"))return;
+ db.items=db.items.filter(x=>x.id!==i);
+ save();render();
+}
+function renderStock(){
+ const q=document.getElementById("stocksearch").value.toLowerCase().trim();
+ const rows=db.items.filter(x=>x.name.toLowerCase().includes(q));
+ stockrows.innerHTML=rows.map(x=>`<tr><td>${safe(x.name)}</td><td>${x.qty}</td><td>${money(x.sell)}</td><td><button class="btn red" onclick="removeItem('${x.id}')">Fafao</button></td></tr>`).join("")||'<tr><td colspan="4">Tsy misy entana.</td></tr>';
+}
+stocksearch.addEventListener("input",renderStock);
+function renderProducts(){
+ const q=search.value.toLowerCase().trim();
+ if(!q){products.innerHTML='<p class="muted">Soraty aloha ny anaran’ny entana tadiavina.</p>';return;}
+ const rows=db.items.filter(x=>x.name.toLowerCase().includes(q));
+ products.innerHTML=rows.map(x=>`<div class="product"><b>${safe(x.name)}</b><p>Stock: ${x.qty}</p><p>Vidiny: ${money(x.sell)}</p><button class="btn green" ${x.qty<1?"disabled":""} onclick="chooseItem('${x.id}')">AMIDY</button></div>`).join("")||"<p>Tsy nahitana entana.</p>";
+}
+search.addEventListener("input",renderProducts);
+let chosen=null;
+function chooseItem(i){
+ chosen=db.items.find(x=>x.id===i);
+ if(!chosen||chosen.qty<1)return notify("Lany stock.");
+ sellname.textContent=chosen.name;
+ sellqty.value=1;sellqty.max=chosen.qty;
+ sellprice.value=chosen.sell;paid.value=chosen.sell;
+ sellcard.hidden=false;calculate();
+ sellcard.scrollIntoView({behavior:"smooth"});
+}
+function calculate(){
+ if(!chosen)return;
+ const total=(Number(sellqty.value)||0)*(Number(sellprice.value)||0);
+ calculation.textContent="Total: "+money(total)+" · Famerenana: "+money(Math.max(0,Number(paid.value)-total));
+}
+["sellqty","sellprice","paid"].forEach(id=>document.getElementById(id).addEventListener("input",calculate));
+document.getElementById("sellform").addEventListener("submit",e=>{
+ e.preventDefault();
+ if(!chosen)return;
+ const q=Number(sellqty.value),p=Number(sellprice.value),v=Number(paid.value),total=q*p;
+ if(!Number.isInteger(q)||q<1||q>chosen.qty)return notify("Diso ny isan’entana.");
+ if(v<total)return notify("Tsy ampy ny vola nomen'ny mpanjifa.");
+ chosen.qty-=q;
+ const s={id:id(),date:new Date().toISOString(),itemName:chosen.name,itemId:chosen.id,qty:q,price:p,buy:chosen.buy,total,paid:v,change:v-total,profit:(p-chosen.buy)*q};
+ db.sales.unshift(s);lastSale=s;
+ db.cash.push({date:s.date,type:"in",amount:total,reason:"Varotra: "+chosen.name});
+ history("Varotra",chosen.name+" × "+q,total);
+ if(save()){
+  sellcard.hidden=true;e.target.reset();chosen=null;
+  render();renderProducts();notify("Vita ny varotra. Afaka manonta facture.");
+ }
+});
+function printInvoice(){
+ if(!lastSale)lastSale=db.sales[0];
+ if(!lastSale)return notify("Tsy mbola misy varotra azo anontana.");
+ const s=lastSale;
+ invoice.innerHTML=`
+ <h2>FACTURE / REÇU</h2>
+ <p class="center">Gestion Stock & Caisse</p>
+ <p class="center">Daty: ${safe(dateText(s.date))}</p><hr>
+ <p><b>Facture N°:</b> ${safe(s.id)}</p>
+ <table><thead><tr><th>Entana</th><th>Isany</th><th>Vidiny</th><th>Totaly</th></tr></thead>
+ <tbody><tr><td>${safe(s.itemName)}</td><td>${s.qty}</td><td>${money(s.price)}</td><td>${money(s.total)}</td></tr></tbody></table>
+ <h3>Totaly: ${money(s.total)}</h3>
+ <p>Vola nomena: ${money(s.paid)}</p>
+ <p>Famerenam-bola: ${money(s.change)}</p><hr>
+ <p class="center">Misaotra anao nividy!</p>`;
+ window.print();
+}
+document.getElementById("cashform").addEventListener("submit",e=>{
+ e.preventDefault();
+ const type=cashtype.value,a=Number(amount.value),r=reason.value.trim();
+ if(a<=0||!r)return notify("Fenoy tsara ny angona.");
+ db.cash.push({date:new Date().toISOString(),type,amount:a,reason:r});
+ history(type==="in"?"Vola miditra":"Vola mivoaka",r,a);
+ if(save()){e.target.reset();render();notify("Voatahiry.");}
+});
+period.addEventListener("change",renderReports);
+function renderReports(){
+ const now=new Date();
+ const filtered=db.sales.filter(s=>{
+  if(period.value==="all")return true;
+  const d=new Date(s.date);
+  return d.toDateString()===(period.value==="today"?now:new Date(now.getFullYear(),now.getMonth(),now.getDate()-1)).toDateString();
+ });
+ soldqty.textContent=filtered.reduce((n,s)=>n+s.qty,0);
+ soldtotal.textContent=money(filtered.reduce((n,s)=>n+s.total,0));
+ profit.textContent=money(filtered.reduce((n,s)=>n+(s.profit||0),0));
+ reportrows.innerHTML=filtered.map(s=>`<tr><td>${dateText(s.date)}</td><td>${safe(s.itemName)}</td><td>${s.qty}</td><td>${money(s.total)}</td></tr>`).join("")||'<tr><td colspan="4">Tsy mbola misy varotra.</td></tr>';
+}
+function renderHistory(){
+ historyrows.innerHTML=db.history.map(x=>`<tr><td>${dateText(x.date)}</td><td>${safe(x.type)}</td><td>${safe(x.detail)}</td><td>${money(x.amount)}</td></tr>`).join("")||'<tr><td colspan="4">Tsy mbola misy tantara.</td></tr>';
+}
+function render(){
+ renderStock();renderProducts();renderReports();renderHistory();
+ kinds.textContent=db.items.length;
+ quantity.textContent=db.items.reduce((n,x)=>n+x.qty,0);
+ turnover.textContent=money(db.sales.reduce((n,x)=>n+x.total,0));
+ const ci=db.cash.filter(x=>x.type==="in").reduce((n,x)=>n+x.amount,0);
+ const co=db.cash.filter(x=>x.type==="out").reduce((n,x)=>n+x.amount,0);
+ cashin.textContent=money(ci);cashout.textContent=money(co);
+ cashbalance.textContent=money(ci-co);balance.textContent=money(ci-co);
+ recent.innerHTML=db.sales.slice(0,5).map(s=>`<p>${safe(s.itemName)} × ${s.qty} — ${money(s.total)}</p>`).join("")||"Tsy mbola misy varotra.";
+}
+function backup(){
+ const blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"});
+ const url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download="gestion-stock-backup.json";a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+function restore(){
+ const f=backupfile.files[0];if(!f)return notify("Safidio aloha ny backup.");
+ const reader=new FileReader();
+ reader.onload=()=>{
+  try{
+   const x=JSON.parse(reader.result);
+   if(!Array.isArray(x.items)||!Array.isArray(x.sales)||!Array.isArray(x.cash)||!Array.isArray(x.history))throw 0;
+   if(!confirm("Hanolo ny angona misy ve ianao?"))return;
+   db=x;save();lastSale=db.sales[0]||null;render();notify("Tafaverina ny backup.");
+  }catch(e){notify("Tsy mety io backup io.");}
+ };
+ reader.readAsText(f);
+}
+load();
+lastSale=db.sales[0]||null;
+render();
+</script>
+</body>
+</html>
